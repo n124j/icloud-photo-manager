@@ -1,0 +1,15 @@
+{
+  "name": "icloud-photo-manager",
+  "version": "1.0.0",
+  "description": "Local dashboard to schedule iCloud Photos hydration and sync/move jobs on Windows via PowerShell, running in the background.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5",
+    "node-cron": "^3.0.3",
+    "uuid": "^9.0.1"
+  }
+}

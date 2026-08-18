@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>iCloud Photo Manager</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> Photo Pipeline</div>
+    <nav class="tabs">
+      <button class="tab-btn active" data-view="jobs">▤&nbsp; Jobs <span class="count" id="jobCount"></span></button>
+      <button class="tab-btn" data-view="activity">▥&nbsp; Activity &amp; Logs</button>
+    </nav>
+    <button class="btn primary" id="newJobBtn" style="margin-top:4px;">+ New job</button>
+    <div class="sidebar-footer">
+      <span class="status-dot" id="connDot"></span>
+      <span id="connLabel">Connecting…</span>
+    </div>
+  </aside>
+
+  <main>
+    <!-- JOBS VIEW -->
+    <section id="view-jobs">
+      <div class="page-header">
+        <div>
+          <h1>Jobs</h1>
+          <p>Hydrate cloud-only photos to this PC, or move already-local files into an archive folder — on a schedule, in the background.</p>
+        </div>
+      </div>
+
+      <div class="pipeline">
+        <svg viewBox="0 0 900 140" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <path id="pathA" d="M 120 70 C 320 70, 320 70, 430 70" fill="none" />
+            <path id="pathB" d="M 470 70 C 580 70, 580 70, 780 70" fill="none" />
+          </defs>
+
+          <!-- connecting lines -->
+          <path d="M 120 70 H 780" stroke="#2a3339" stroke-width="2" fill="none" />
+
+          <!-- node: iCloud -->
+          <circle cx="90" cy="70" r="34" fill="#171d21" stroke="#4fb8e8" stroke-width="2" />
+          <text x="90" y="66" text-anchor="middle" class="pipeline-node-count" id="countCloud">–</text>
+          <text x="90" y="82" text-anchor="middle" class="pipeline-node-label" style="fill:#4fb8e8">iCloud</text>
+          <text x="90" y="126" text-anchor="middle" class="pipeline-node-label">cloud-only</text>
+
+          <!-- node: Local -->
+          <circle cx="450" cy="70" r="34" fill="#171d21" stroke="#e8a94f" stroke-width="2" />
+          <text x="450" y="66" text-anchor="middle" class="pipeline-node-count" id="countLocal">–</text>
+          <text x="450" y="82" text-anchor="middle" class="pipeline-node-label" style="fill:#e8a94f">Local sync</text>
+          <text x="450" y="126" text-anchor="middle" class="pipeline-node-label">hydrated this run</text>
+
+          <!-- node: Archive -->
+          <circle cx="810" cy="70" r="34" fill="#171d21" stroke="#7dd8a0" stroke-width="2" />
+          <text x="810" y="66" text-anchor="middle" class="pipeline-node-count" id="countArchive">–</text>
+          <text x="810" y="82" text-anchor="middle" class="pipeline-node-label" style="fill:#7dd8a0">Archive</text>
+          <text x="810" y="126" text-anchor="middle" class="pipeline-node-label">moved this run</text>
+
+          <!-- flowing dots -->
+          <circle id="dotHydrate" class="flow-dot" r="4" fill="#4fb8e8" style="offset-path: path('M 124 70 C 320 70, 320 70, 446 70');"></circle>
+          <circle id="dotMove" class="flow-dot" r="4" fill="#e8a94f" style="offset-path: path('M 454 70 C 580 70, 580 70, 776 70');"></circle>
+        </svg>
+      </div>
+
+      <div id="jobGrid" class="job-grid"></div>
+      <div id="jobEmpty" class="empty-state" style="display:none;">
+        <h3>No jobs yet</h3>
+        <p>Create a job to hydrate cloud photos locally, or move local photos into an archive folder.</p>
+      </div>
+    </section>
+
+    <!-- ACTIVITY VIEW -->
+    <section id="view-activity" style="display:none;">
+      <div class="page-header">
+        <div>
+          <h1>Activity &amp; logs</h1>
+          <p>Live output from running jobs, plus recent run history.</p>
+        </div>
+      </div>
+
+      <div id="runningList"></div>
+
+      <div class="console" id="console"></div>
+
+      <div class="page-header" style="margin-top:26px;">
+        <div><h1 style="font-size:16px;">Run history</h1></div>
+      </div>
+      <div id="runHistory"></div>
+    </section>
+  </main>
+</div>
+
+<!-- JOB MODAL -->
+<div class="modal-backdrop" id="jobModalBackdrop" style="display:none;">
+  <div class="modal">
+    <h2 id="modalTitle">New job</h2>
+    <form id="jobForm">
+      <input type="hidden" id="jobId" />
+
+      <div class="field">
+        <label>Job type</label>
+        <div class="type-pick">
+          <div class="type-card" data-type="hydrate" id="typeCardHydrate">
+            <strong>Make available locally</strong>
+            <span>Download cloud-only iCloud photos onto this PC</span>
+          </div>
+          <div class="type-card" data-type="sync" id="typeCardSync">
+            <strong>Move to folder</strong>
+            <span>Copy or move already-local photos to a destination</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Job name</label>
+        <input type="text" id="jobName" placeholder="e.g. Nightly hydrate — last 6 months" />
+      </div>
+
+      <div class="field">
+        <label>Source folder (iCloud Photos folder)</label>
+        <div class="path-input-group">
+          <input type="text" id="sourceFolder" placeholder="C:\Users\you\Pictures\iCloud Photos\Photos" />
+          <button type="button" class="btn small" data-browse="sourceFolder">Browse</button>
+        </div>
+      </div>
+
+      <div class="field" id="destFolderField" style="display:none;">
+        <label>Destination folder</label>
+        <div class="path-input-group">
+          <input type="text" id="destFolder" placeholder="D:\Photos\Archive" />
+          <button type="button" class="btn small" data-browse="destFolder">Browse</button>
+        </div>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label>File types</label>
+          <input type="text" id="extensions" placeholder="* or jpg,heic,mov" value="*" />
+          <div class="hint">Comma-separated extensions, or * for all photo/video types</div>
+        </div>
+        <div class="field">
+          <label>How many files</label>
+          <input type="number" id="count" min="0" value="0" />
+          <div class="hint">0 = no limit (all matches)</div>
+        </div>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label>Order</label>
+          <select id="orderBy">
+            <option value="Newest">Newest first</option>
+            <option value="Oldest">Oldest first</option>
+          </select>
+        </div>
+        <div class="field" id="actionField" style="display:none;">
+          <label>Action</label>
+          <select id="action">
+            <option value="Copy">Copy (keep original)</option>
+            <option value="Move">Move (delete original after copy)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="toggle-row">
+          <label style="margin-bottom:0;">Run on a schedule</label>
+          <label class="switch"><input type="checkbox" id="scheduleEnabled" /><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <div id="scheduleFields" style="display:none;">
+        <div class="field">
+          <label>Frequency</label>
+          <select id="freqPreset">
+            <option value="hourly">Every N hours</option>
+            <option value="daily">Daily at a time</option>
+            <option value="weekly">Weekly on a day</option>
+            <option value="custom">Custom cron expression</option>
+          </select>
+        </div>
+
+        <div class="row-2" id="freqHourly">
+          <div class="field">
+            <label>Every</label>
+            <input type="number" id="everyHours" min="1" value="6" />
+            <div class="hint">hours</div>
+          </div>
+        </div>
+
+        <div class="row-2" id="freqDaily" style="display:none;">
+          <div class="field">
+            <label>Time</label>
+            <input type="text" id="dailyTime" placeholder="HH:MM (24h)" value="02:00" />
+          </div>
+        </div>
+
+        <div class="row-2" id="freqWeekly" style="display:none;">
+          <div class="field">
+            <label>Day</label>
+            <select id="weeklyDay">
+              <option value="0">Sunday</option><option value="1">Monday</option>
+              <option value="2">Tuesday</option><option value="3">Wednesday</option>
+              <option value="4">Thursday</option><option value="5">Friday</option>
+              <option value="6">Saturday</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Time</label>
+            <input type="text" id="weeklyTime" placeholder="HH:MM (24h)" value="02:00" />
+          </div>
+        </div>
+
+        <div class="field" id="freqCustom" style="display:none;">
+          <label>Cron expression</label>
+          <input type="text" id="customCron" placeholder="0 2 * * *" />
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="toggle-row">
+          <label style="margin-bottom:0;">Job enabled</label>
+          <label class="switch"><input type="checkbox" id="jobEnabled" checked /><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" id="cancelModalBtn">Cancel</button>
+        <button type="submit" class="btn primary" id="saveJobBtn">Save job</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- FOLDER BROWSE MODAL -->
+<div class="modal-backdrop" id="browseModalBackdrop" style="display:none;">
+  <div class="modal" style="width:480px;">
+    <h2>Choose a folder</h2>
+    <div class="browser-path" id="browserPath">This PC</div>
+    <div class="browser-list" id="browserList"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" id="cancelBrowseBtn">Cancel</button>
+      <button type="button" class="btn primary" id="selectFolderBtn">Select this folder</button>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
